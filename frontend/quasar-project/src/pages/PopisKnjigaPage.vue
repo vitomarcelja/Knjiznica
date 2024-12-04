@@ -45,7 +45,7 @@ export default {
         },
         { 
           id: 5, 
-          naslov: 'Hari Poter i Kamen mudraca', 
+          naslov: 'Harry Potter i Kamen mudraca', 
           autor: 'J.K. Rowling', 
           opis: 'Prvi roman o Hariju Poteru, mladom čarobnjaku koji otkriva svoje magične moći i kreće u školu čarobnjaštva.', 
           stanje: 2 
@@ -61,7 +61,7 @@ export default {
           id: 7, 
           naslov: 'Don Quijote', 
           autor: 'Miguel de Cervantes', 
-          opis: 'Satiričan roman o vitezu Don Quijoteu i njegovom vjernom štitonoši Sanču Panzi.', 
+          opis: 'Satiričan roman o vitezu Don Quijoteu.', 
           stanje: 2 
         },
         { 

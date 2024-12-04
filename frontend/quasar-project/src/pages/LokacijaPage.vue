@@ -15,12 +15,16 @@ export default {
     const initialMap = ref(null);
 
     onMounted(() => {
-      initialMap.value = L.map('map').setView([45.3312, 14.4322], 13);
+      initialMap.value = L.map('map').setView([45.3282, 14.4378], 15);
 
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(initialMap.value);
+
+      L.marker([45.3282, 14.4378]).addTo(initialMap.value)
+        .bindPopup('<b>Gradska knjižnica Rijeka</b><br>Rijeka, Hrvatska.')
+        .openPopup();
     });
 
     return {
@@ -29,3 +33,4 @@ export default {
   }
 };
 </script>
+
