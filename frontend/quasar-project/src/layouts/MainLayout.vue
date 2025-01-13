@@ -95,6 +95,18 @@ const linksList = [
     caption: 'Registracija',
     icon: 'app_registration',
     link: '#/Registracija'
+  },
+  {
+    title: 'Popis Knjiga Baza',
+    caption: 'Popis Knjiga Baza',
+    icon: 'book',
+    link: '#/PopisKnjigaBaza'
+  },
+  {
+    title: 'Rezervacija',
+    caption: 'Rezervacija knjiga',
+    icon: 'book',
+    link: '#/RezervacijaKnjiga'
   }
 ]
 

@@ -71,7 +71,7 @@ export default {
         },
         { 
           id: 2, 
-          naslov: 'Bratstvo prstena', 
+          naslov: 'Prstenova družina', 
           autor: 'J.R.R. Tolkien', 
           opis: 'Prva knjiga epske trilogije o ratu za Prsten i sudbinama koje ga okružuju.', 
           stanje: 5 
