@@ -127,7 +127,7 @@ export default {
 
     const loadBooks = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/api/knjiga');
+        const response = await axios.get('http://localhost:3000/api/knjige');
         books.value = response.data || [];
       } catch (error) {
         console.error("Greška pri učitavanju knjiga:", error);

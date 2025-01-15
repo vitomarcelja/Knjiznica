@@ -6,8 +6,6 @@ const mysql = require("mysql");
 const app = express();
 const port = 3000;
 
-app.use(cors());
-
 app.use(bodyParser.json());
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -19,53 +17,62 @@ const connection = mysql.createConnection({
   database: "vmarcelja",
 });
 
-app.use(express.urlencoded({ extended: true }));
-
-/*
 connection.connect(function (err) {
-  if (err) throw err;
-  console.log("Connected!");
-});
-*/
-
-app.listen(port, () => {
-  console.log("Server running at port: " + port);
+  if (err) {
+    console.error("Greška prilikom spajanja na bazu:", err);
+  }
+  console.log("Connected to the database!");
 });
 
-app.get("/api/knjiga", (req, res) => {
+app.use(cors());
+
+app.post("/api/unos_knjige", (req, res) => {
+  const data = req.body;
+  knjiga = [[data.naslov, data.autor, data.opis, data.slika, data.stanje]];
+  connection.query(
+    "INSERT INTO knjiga (naslov, autor, opis, slika, stanje) VALUES ?",
+    [knjiga],
+    (error, results) => {
+      if (error) throw error;
+      res.send(results);
+    }
+  );
+});
+
+app.get("/api/rezervirane_knjige", (req, res) => {
+  connection.query(
+    `SELECT 
+    r.id AS rezervacija_id,
+    k.naslov AS naslov_knjige,
+    k.autor AS autor_knjige,
+    ko.ime AS ime_korisnika,
+    ko.prezime AS prezime_korisnika,
+    DATE_FORMAT(r.datum_rezervacije, '%d.%m.%Y') AS datum_rezervacije
+    FROM 
+    rezervacija r
+    JOIN 
+    korisnik ko ON r.korisnik_id = ko.id
+    JOIN 
+    knjiga k ON r.knjiga_id = k.id;`,
+    (error, results) => {
+      if (error) throw error;
+      res.send(results);
+    }
+  );
+});
+
+app.get("/api/knjige", (req, res) => {
   connection.query("SELECT * FROM knjiga", (error, results) => {
     if (error) throw error;
     res.send(results);
   });
 });
 
-
-app.get("/api/knjiga/:id", (request, response) => {
-  const id = request.params.id;
-  response.send("jedna knjiga" + id);
-});
-
-app.post("/api/rezervirane_knjige", (req, res) => {
-  const data = req.body;
-  rezervacija = [[date.today, data.id_knjiga, data.id_korisnik]];
-
-  connection.query(
-    "INSERT INTO rezervacija (datum, knjiga, korisnik) VALUES ?",
-    [rezervacija],
-    (error, results) => {
-      if (error) throw error;
-      res.send(results);
-    }
-  );
-
-  //response.send("Poslano" + data.id_knjiga);
-});
-
-app.get("/api/knjiga/naslov/:naslov", (req, res) => {
-  const naslov = req.params.naslov;
+app.get("/api/knjige/naslov/:naslov", (req, res) => {
+  const naslov = `%${req.params.naslov}%`;
   connection.query(
     "SELECT * FROM knjiga WHERE naslov LIKE ?",
-    [`%${naslov}%`],
+    [naslov],
     (error, results) => {
       if (error) throw error;
       res.send(results);
@@ -73,11 +80,11 @@ app.get("/api/knjiga/naslov/:naslov", (req, res) => {
   );
 });
 
-app.get("/api/knjiga/autor/:autor", (req, res) => {
-  const autor = req.params.autor;
+app.get("/api/knjige/autor/:autor", (req, res) => {
+  const autor = `%${req.params.autor}%`;
   connection.query(
     "SELECT * FROM knjiga WHERE autor LIKE ?",
-    [`%${autor}%`],
+    [autor],
     (error, results) => {
       if (error) throw error;
       res.send(results);
@@ -85,82 +92,80 @@ app.get("/api/knjiga/autor/:autor", (req, res) => {
   );
 });
 
-app.get("/api/slob_knjiga", (req, res) => {
+app.get("/api/slob_knjige", (req, res) => {
   const query = `
-    SELECT (knjiga.stanje - COUNT(rezervacija.knjiga)) AS slobodne, knjiga.id, knjiga.naslov, knjiga.stanje 
-    FROM knjiga 
-    LEFT JOIN rezervacija ON knjiga.id = rezervacija.knjiga 
-    WHERE knjiga.stanje = 'dostupna'
-    GROUP BY knjiga.id;
-  `;
+  SELECT 
+  (knjiga.stanje - COUNT(rezervacija.knjiga_id)) AS slobodne, 
+  knjiga.id, knjiga.naslov, knjiga.stanje 
+  FROM knjiga 
+  LEFT JOIN rezervacija ON knjiga.id = rezervacija.knjiga_id 
+  GROUP BY knjiga.id`;
   connection.query(query, (error, results) => {
     if (error) throw error;
     res.send(results);
   });
 });
 
-app.get("/api/slob_knjiga/:id_knjiga", (req, res) => {
+app.get("/api/slob_knjige/:id_knjige", (req, res) => {
   const id_knjige = req.params.id_knjige;
   const query = `
-    SELECT (knjiga.stanje - COUNT(rezervacija.knjiga)) AS slobodne 
-    FROM knjiga 
-    LEFT JOIN rezervacija ON knjiga.id = rezervacija.knjiga 
-    WHERE knjiga.id = ?
-    GROUP BY knjiga.id;
-  `;
+  SELECT (knjiga.stanje - COUNT(rezervacija.knjiga_id)) AS slobodne 
+  FROM knjiga 
+  LEFT JOIN rezervacija ON knjiga.id = rezervacija.knjiga_id 
+  WHERE knjiga.id = ? 
+  GROUP BY knjiga.id`;
   connection.query(query, [id_knjige], (error, results) => {
     if (error) throw error;
-    res.send(results);
+    res.send(results[0] || { slobodne: 0 });
   });
 });
 
-app.get("/api/rezervirane_knjige", (req, res) => {
-  connection.query(
-    "SELECT * FROM knjiga, rezervacija WHERE knjiga.id = rezervacija.knjiga",
-    (error, results) => {
-      if (error) throw error;
-      res.send(results);
-    }
-  );
-});
-
-app.get("/api/rezervirane_knjige_korisnici", (req, res) => {
+app.get("/api/rezerv_knjige", (req, res) => {
   const query = `
-    SELECT * 
-    FROM knjiga, rezervacija, korisnik 
-    WHERE knjiga.id = rezervacija.knjiga AND korisnik.id = rezervacija.korisnik;
-  `;
+  SELECT * 
+  FROM knjiga, rezervacija 
+  WHERE knjiga.id = rezervacija.knjiga_id`;
   connection.query(query, (error, results) => {
     if (error) throw error;
     res.send(results);
   });
 });
 
-app.get("/api/rezervirane_knjige/:id_korisnik", (req, res) => {
-  const id_korisnik = req.params.id_korisnik;
+app.get("/api/rezerv_knjige_korisnici", (req, res) => {
   const query = `
-    SELECT * 
-    FROM knjiga, rezervacija, korisnik 
-    WHERE knjiga.id = rezervacija.knjiga 
-    AND korisnik.id = rezervacija.korisnik 
-    AND korisnik.id = ?;
-  `;
-  connection.query(query, [id_korisnik], (error, results) => {
+  SELECT * 
+  FROM knjiga, rezervacija, korisnik 
+  WHERE knjiga.id=rezervacija.knjiga_id 
+  AND korisnik.id=rezervacija.korisnik_id`;
+  connection.query(query, (error, results) => {
     if (error) throw error;
     res.send(results);
   });
 });
 
-app.get("/api/rezervirane_knjige_knjiga/:id_knjiga", (req, res) => {
-  const id_knjiga = req.params.id_knjiga;
+app.get("/api/rezerv_knjige/:korisnik_id", (req, res) => {
+  const korisnik_id = req.params.korisnik_id;
   const query = `
-    SELECT * 
-    FROM knjiga, rezervacija, korisnik 
-    WHERE knjiga.id = rezervacija.knjiga 
-    AND korisnik.id = rezervacija.korisnik 
-    AND knjiga.id = ?;
-  `;
-  connection.query(query, [id_knjiga], (error, results) => {
+  SELECT * 
+  FROM knjiga, rezervacija, korisnik 
+  WHERE knjiga.id=rezervacija.knjiga_id 
+  AND korisnik.id=rezervacija.korisnik_id
+  AND korisnik.id= ?`;
+  connection.query(query, [korisnik_id], (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/rezerv_knjige_knjiga/:knjiga_id", (req, res) => {
+  const knjiga_id = req.params.knjiga_id;
+  const query = `
+  SELECT *
+  FROM knjiga, rezervacija, korisnik  
+  WHERE knjiga.id=rezervacija.knjiga_id
+  AND korisnik.id=rezervacija.korisnik_id
+  AND knjiga.id=?`;
+  connection.query(query, [knjiga_id], (error, results) => {
     if (error) throw error;
     res.send(results);
   });
@@ -173,32 +178,24 @@ app.get("/api/korisnici", (req, res) => {
   });
 });
 
-app.get("/api/rezervirane_knjige", (req, res) => {
-  const query = `
-    SELECT 
-      knjiga.naslov AS naslov, 
-      knjiga.autor AS autor, 
-      CONCAT(korisnik.ime, ' ', korisnik.prezime) AS korisnik, 
-      rezervacija.datum AS datum_rez
-    FROM rezervacija
-    JOIN knjiga ON rezervacija.knjiga = knjiga.id
-    JOIN korisnik ON rezervacija.korisnik = korisnik.id;
-  `;
-  connection.query(query, (error, results) => {
-    if (error) {
-      console.error("Greška kod dohvaćanja rezervacija:", error);
-      res.status(500).send("Došlo je do pogreške.");
-    } else {
-      res.json(results);
-    }
-  });
-});
-
-app.get("/api/korisnici/:id_korisnik", (req, res) => {
-  const id_korisnik = req.params.id_korisnik;
+app.get("/api/korisnici/:korisnik_id", (req, res) => {
+  const korisnik_id = req.params.korisnik_id;
   connection.query(
     "SELECT * FROM korisnik WHERE id = ?",
-    [id_korisnik],
+    [korisnik_id],
+    (error, results) => {
+      if (error) throw error;
+      res.send(results[0]);
+    }
+  );
+});
+
+app.put("/api/korisnici/:korisnik_id", (req, res) => {
+  const korisnik_id = req.params.korisnik_id;
+  const data = req.body;
+  connection.query(
+    "UPDATE korisnik SET ? WHERE id = ?",
+    [data, korisnik_id],
     (error, results) => {
       if (error) throw error;
       res.send(results);
@@ -206,43 +203,167 @@ app.get("/api/korisnici/:id_korisnik", (req, res) => {
   );
 });
 
-app.put("/api/korisnici/:id_korisnik", (req, res) => {
-  const id_korisnik = req.params.id_korisnik;
-  const { ime, prezime, korime, lozinka, email, broj_telefona } = req.body;
-  const query = `
-    UPDATE korisnik 
-    SET ime = ?, prezime = ?, korime = ?, lozinka = ?, email = ?, broj_telefona = ? 
-    WHERE id = ?;
-  `;
-  connection.query(
-    query,
-    [ime, prezime, korime, lozinka, email, broj_telefona, id_korisnik],
-    (error, results) => {
-      if (error) throw error;
-      res.send({ message: "Korisnik azuriran!" });
-    }
-  );
-});
-
-app.post("/api/rezervirane_knjige/:id_knjiga", (req, res) => {
-  const id_knjiga = req.params.id_knjiga;
+app.post("/api/rezerv_knjige/:knjiga_id", (req, res) => {
+  const knjiga_id = req.params.knjiga_id;
   const { korisnik_id, datum } = req.body;
-  const query =
-    "INSERT INTO rezervacija (datum, knjiga, korisnik) VALUES (?, ?, ?)";
-  connection.query(query, [datum, id_knjiga, korisnik_id], (error, results) => {
+  const query = `
+  INSERT INTO rezervacija (datum_rezervacije, knjiga_id, korisnik_id) 
+  VALUES (?, ?, ?)`;
+  connection.query(query, [datum, knjiga_id, korisnik_id], (error, results) => {
     if (error) throw error;
-    res.send({ message: "Rezervacija uspješna!" });
+    res.send(results);
   });
 });
 
-app.delete("/api/rezervirane_knjige/:id_knjiga", (req, res) => {
-  const id_knjiga = req.params.id_knjiga;
+app.delete("/api/rezerv_knjige/:knjiga_id", (req, res) => {
+  const knjiga_id = req.params.knjiga_id;
   connection.query(
-    "DELETE FROM rezervacija WHERE knjiga = ?",
-    [id_knjiga],
+    "DELETE FROM rezervacija WHERE knjiga_id = ?",
+    [knjiga_id],
     (error, results) => {
       if (error) throw error;
-      res.send({ message: "Rezervacija obrisana!" });
+      res.send(results);
     }
   );
+});
+
+app.get("/api/broj_knjiga/:korisnik_id", (req, res) => {
+  const korisnik_id = req.params.korisnik_id;
+  const query =
+    "SELECT COUNT(*) AS broj_knjiga FROM rezervacija WHERE korisnik_id = ?";
+  connection.query(query, [korisnik_id], (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/slob_prim/:knjiga_id", (req, res) => {
+  const knjiga_id = req.params.knjiga_id;
+  const query = `
+  SELECT stanje - (SELECT COUNT(*) FROM rezervacija WHERE knjiga_id = ?) AS slob_prim
+  FROM knjiga
+  WHERE id = ?;`;
+  connection.query(query, [knjiga_id, knjiga_id], (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/rez_prim/:knjiga_id", (req, res) => {
+  const knjiga_id = req.params.knjiga_id;
+  const query = "SELECT COUNT(*) AS rez_prim FROM rezervacija WHERE id = ?";
+  connection.query(query, [knjiga_id], (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/kor_za_knjigu/:knjiga_id", (req, res) => {
+  const knjiga_id = req.params.knjiga_id;
+  const query = `
+  SELECT DISTINCT k.*
+  FROM korisnik k
+  JOIN rezervacija r ON k.id = r.korisnik_id
+  WHERE r.knjiga_id = ?`;
+  connection.query(query, [knjiga_id], (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/ukupno_prim", (req, res) => {
+  const query = "SELECT SUM(stanje) AS ukupan_br_prim FROM knjiga";
+  connection.query(query, (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/ukupno_rez", (req, res) => {
+  const query = "SELECT COUNT(*) AS ukupan_br_rez FROM rezervacija";
+  connection.query(query, (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/ukupno_slob", (req, res) => {
+  const query = `
+  SELECT SUM
+  (stanje - COALESCE((SELECT COUNT(*) 
+  FROM rezervacija 
+  WHERE rezervacija.knjiga_id = knjiga.id), 0)) AS slob_prim
+  FROM knjiga;`;
+  connection.query(query, (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/knjige_manje_od_3", (req, res) => {
+  const query = "SELECT * FROM knjiga WHERE stanje < 3";
+  connection.query(query, (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/kor_duze_od_mj_dana", (req, res) => {
+  const query = `
+  SELECT k.*, r.knjiga_id, r.datum_rezervacije
+  FROM korisnik k
+  JOIN rezervacija r ON k.id = r.korisnik_id
+  WHERE r.datum_rezervacije < CURDATE() - INTERVAL 1 MONTH`;
+  connection.query(query, (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/kontakt_kor", (req, res) => {
+  const query = `
+  SELECT k.email, k.broj_telefona, knjiga.naslov, r.datum_rezervacije
+  FROM korisnik k
+  JOIN rezervacija r ON k.id = r.korisnik_id
+  JOIN knjiga ON r.knjiga_id = knjiga.id
+  WHERE r.datum_rezervacije < CURDATE() - INTERVAL 1 MONTH`;
+  connection.query(query, (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.get("/api/rez_iste_knjige/:korisnik_id", (req, res) => {
+  const korisnik_id = req.params.korisnik_id;
+  const query = `
+  SELECT knjiga_id, COUNT(*) AS br_rez
+  FROM rezervacija
+  WHERE korisnik_id = ?
+  GROUP BY knjiga_id
+  HAVING COUNT(*) >= 2`;
+  connection.query(query, [korisnik_id], (error, results) => {
+    if (error) throw error;
+    res.send(results);
+  });
+});
+
+app.put("/api/izmj_kor/:korisnik_id", (req, res) => {
+  const korisnik_id = req.params.korisnik_id;
+  const { ime, email, broj_telefona } = req.body;
+  const query = `
+  UPDATE korisnik 
+  SET ime = ?, email = ?, broj_telefona = ? 
+  WHERE korisnik_id = ?`;
+  connection.query(
+    query,
+    [ime, email, broj_telefona, korisnik_id],
+    (error, results) => {
+      if (error) throw error;
+      res.json({ message: "Podaci korisnika su ažurirani" });
+    }
+  );
+});
+
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
 });

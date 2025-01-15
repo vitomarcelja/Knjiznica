@@ -21,7 +21,7 @@
   
       <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
         <q-list>
-          <q-item-label header class="stil"> Menu </q-item-label>
+          <q-item-label header class="stil"> Meni </q-item-label>
   
           <EssentialLink
             class="meni"
@@ -52,31 +52,31 @@
   const linksList = [
     {
       title: "Popis svih knjiga",
-      caption: "Popis knjiga u knjiznici",
-      icon: "book",
-      link: "#/admin/popisKnjiga",
+      caption: "Popis svih knjiga",
+      icon: "list",
+      link: "#/admin/popis_knjiga",
     },
     {
-      title: "Pretrazivanje",
-      caption: "Pretrazivanje knjiga",
+      title: "Pretraživanje",
+      caption: "Pretraživanje knjiga",
       icon: "search",
-      link: "#/admin/Pretrazivanje",
+      link: "#/admin/pretrazivanje",
     },
     {
       title: "Popis korisnika",
-      caption: "Popis postojecih korisnika",
+      caption: "Popis svih korisnika",
       icon: "group",
       link: "#/admin/popis_korisnika",
     },
     {
       title: "Unos knjiga",
-      caption: "Unos zeljenih knjiga",
+      caption: "Unos željenih knjiga",
       icon: "add",
-      link: "#/admin/unosKnjiga",
+      link: "#/admin/unos_knjiga",
     },
     {
       title: "Logout",
-      caption: "Odjava",
+      caption: "Odjavi se",
       icon: "logout",
       link: "#/admin/logout",
     },
@@ -110,4 +110,3 @@
     user-select: none;
   }
   </style>
-  
